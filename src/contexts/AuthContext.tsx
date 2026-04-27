@@ -49,74 +49,100 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (docSnap.exists()) {
             console.log('PROFILE_LOADED:', firebaseUser.email);
             const data = docSnap.data();
-            setProfile({
+            const profileData = {
               ...data,
               createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
-            } as UserProfile);
-          } else {
-            console.log('REGISTERING_NEW_USER:', firebaseUser.email);
-            // New user registration logic
-            let referredByUid = '';
-            const storedRef = localStorage.getItem('prudente_ref');
-            
-            if (storedRef) {
-              try {
-                const q = query(collection(db, 'users'), where('referralCode', '==', storedRef));
-                const querySnapshot = await getDocs(q);
-                if (!querySnapshot.empty) {
-                  const referrerDoc = querySnapshot.docs[0];
-                  referredByUid = referrerDoc.id;
-                  
-                  // Update referrer count
-                  await updateDoc(doc(db, 'users', referredByUid), {
-                    referralCount: increment(1)
-                  });
+            } as UserProfile;
 
-                  // Log the referral
-                  await addDoc(collection(db, 'referrals'), {
-                    referrerId: referredByUid,
-                    refereeId: firebaseUser.uid,
-                    createdAt: serverTimestamp()
-                  });
-                }
-              } catch (e) {
-                console.error("Error processing referral:", e);
-              } finally {
-                localStorage.removeItem('prudente_ref');
-              }
+            // Migration for existing users missing affiliate fields
+            if (!profileData.referralCode) {
+              console.log('MIGRATING_USER_AFFILIATE_FIELDS:', firebaseUser.email);
+              const uniqueReferralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+              updateDoc(userDocRef, {
+                referralCode: uniqueReferralCode,
+                referralCount: 0,
+                firstPaymentCompleted: false,
+                commissionGenerated: false,
+                totalEarnings: 0
+              }).catch(e => console.error("Migration error:", e));
             }
 
-            const uniqueReferralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            setProfile(profileData);
+          } else {
+            console.log('REGISTERING_NEW_USER:', firebaseUser.email, 'Verified:', firebaseUser.emailVerified);
+            
+            // Critical check for rules compatibility
+            if (!firebaseUser.emailVerified && firebaseUser.email !== 'contato.fh3@gmail.com') {
+              console.warn('Registration might fail because email is not verified.');
+            }
 
-            const newProfile = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email || '',
-              displayName: firebaseUser.displayName || 'Usuário',
-              role: 'user',
-              isVip: false,
-              createdAt: serverTimestamp(),
-              referralCode: uniqueReferralCode,
-              referredBy: referredByUid || null,
-              referralCount: 0,
-              firstPaymentCompleted: false,
-              commissionGenerated: false,
-              totalEarnings: 0
-            };
+            try {
+              // New user registration logic
+              let referredByUid = '';
+              const storedRef = localStorage.getItem('prudente_ref');
+              
+              if (storedRef) {
+                try {
+                  const q = query(collection(db, 'users'), where('referralCode', '==', storedRef));
+                  const querySnapshot = await getDocs(q);
+                  if (!querySnapshot.empty) {
+                    const referrerDoc = querySnapshot.docs[0];
+                    referredByUid = referrerDoc.id;
+                    
+                    // Update referrer count
+                    await updateDoc(doc(db, 'users', referredByUid), {
+                      referralCount: increment(1)
+                    });
 
-            await setDoc(userDocRef, newProfile);
-            setProfile({
-              ...newProfile,
-              createdAt: new Date()
-            } as UserProfile);
+                    // Log the referral
+                    await addDoc(collection(db, 'referrals'), {
+                      referrerId: referredByUid,
+                      refereeId: firebaseUser.uid,
+                      createdAt: serverTimestamp()
+                    });
+                  }
+                } catch (e) {
+                  console.error("Error processing referral:", e);
+                } finally {
+                  localStorage.removeItem('prudente_ref');
+                }
+              }
 
-            // Bootstrap admin
-            if (firebaseUser.email === 'contato.fh3@gmail.com') {
-              console.log('BOOTSTRAPPING_ADMIN:', firebaseUser.email);
-              setDoc(doc(db, 'admins', firebaseUser.uid), {
-                email: firebaseUser.email,
-                bootstrapped: true
-              });
-              setDoc(userDocRef, { role: 'admin' }, { merge: true });
+              const uniqueReferralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+              const newProfile = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email || '',
+                displayName: firebaseUser.displayName || 'Usuário',
+                role: 'user',
+                isVip: false,
+                createdAt: serverTimestamp(),
+                referralCode: uniqueReferralCode,
+                referredBy: referredByUid || null,
+                referralCount: 0,
+                firstPaymentCompleted: false,
+                commissionGenerated: false,
+                totalEarnings: 0
+              };
+
+              await setDoc(userDocRef, newProfile);
+              setProfile({
+                ...newProfile,
+                createdAt: new Date()
+              } as UserProfile);
+
+              // Bootstrap admin
+              if (firebaseUser.email === 'contato.fh3@gmail.com') {
+                console.log('BOOTSTRAPPING_ADMIN:', firebaseUser.email);
+                await setDoc(doc(db, 'admins', firebaseUser.uid), {
+                  email: firebaseUser.email,
+                  bootstrapped: true
+                });
+                await setDoc(userDocRef, { role: 'admin' }, { merge: true });
+                setProfile(prev => prev ? { ...prev, role: 'admin' } : null);
+              }
+            } catch (regError) {
+              console.error('REGISTRATION_ERROR:', regError);
             }
           }
           setLoading(false);

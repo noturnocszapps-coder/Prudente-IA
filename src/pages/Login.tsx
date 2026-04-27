@@ -60,26 +60,44 @@ export default function Login() {
           <motion.div 
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-left"
+            className="space-y-2"
           >
-            <AlertCircle size={14} className="shrink-0" />
-            {error}
+            <div className="flex items-center gap-2 p-3 text-xs bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-left">
+              <AlertCircle size={14} className="shrink-0" />
+              {error}
+            </div>
+            {error.includes('conexão') && (
+              <p className="text-[10px] text-neutral-500 text-center px-4 leading-normal">
+                Dica: Tente abrir o app em uma <b>nova aba</b> clicando no ícone de "Seta para fora" no topo do preview.
+              </p>
+            )}
           </motion.div>
         )}
 
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-          className="group relative w-full flex items-center justify-center gap-3 bg-white text-black py-4 rounded-full font-bold transition-all hover:bg-neutral-100 hover:shadow-xl active:scale-95 disabled:opacity-70 disabled:active:scale-100"
-        >
-          {loading ? (
-            <Loader2 size={20} className="animate-spin" />
-          ) : (
-            <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
+        <div className="space-y-3">
+          <button
+            onClick={handleLogin}
+            disabled={loading}
+            className="group relative w-full flex items-center justify-center gap-3 bg-white text-black py-4 rounded-full font-bold transition-all hover:bg-neutral-100 hover:shadow-xl active:scale-95 disabled:opacity-70 disabled:active:scale-100"
+          >
+            {loading ? (
+              <Loader2 size={20} className="animate-spin" />
+            ) : (
+              <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
+            )}
+            {loading ? 'Entrando...' : 'Entrar com Google'}
+            {!loading && <LogIn size={18} className="absolute right-6 opacity-0 group-hover:opacity-100 transition-opacity" />}
+          </button>
+
+          {error && (
+            <button
+              onClick={() => signInWithGoogle(true)}
+              className="w-full text-[11px] text-neutral-500 hover:text-white transition-colors underline py-2 font-medium"
+            >
+              Tentar login por redirecionamento (alternativo)
+            </button>
           )}
-          {loading ? 'Entrando...' : 'Entrar com Google'}
-          {!loading && <LogIn size={18} className="absolute right-6 opacity-0 group-hover:opacity-100 transition-opacity" />}
-        </button>
+        </div>
       </div>
 
       <p className="text-[10px] text-neutral-600 max-w-xs uppercase tracking-widest font-bold">

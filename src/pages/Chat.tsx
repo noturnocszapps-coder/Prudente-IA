@@ -55,21 +55,22 @@ export default function Chat() {
     setLoading(true);
 
     try {
-      // 1. Add user message to Firestore
+      // 1. Create/Update chat metadata FIRST (important for security rules)
+      const chatDocRef = doc(db, 'chats', chatId);
+      await setDoc(chatDocRef, {
+        userId: user.uid,
+        title: userMessage.substring(0, 50),
+        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp(), // Will only set if doesn't exist due to merge
+      }, { merge: true });
+
+      // 2. Add user message to Firestore
       const msgRef = collection(db, 'chats', chatId, 'messages');
       await addDoc(msgRef, {
         role: 'user',
         content: userMessage,
         timestamp: serverTimestamp(),
       });
-
-      // 2. Update chat metadata
-      await setDoc(doc(db, 'chats', chatId), {
-        userId: user.uid,
-        title: userMessage.substring(0, 50),
-        updatedAt: serverTimestamp(),
-        createdAt: serverTimestamp(), // Will only set if doesn't exist
-      }, { merge: true });
 
       // 3. Get AI Response
       const history = messages.map(msg => ({

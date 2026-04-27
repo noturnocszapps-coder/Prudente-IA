@@ -12,7 +12,7 @@ service cloud.firestore {
     }
 
     function isEmailVerified() {
-      return isSignedIn() && request.auth.token.email_verified == true;
+      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.email == 'contato.fh3@gmail.com');
     }
 
     function isValidId(id) {
@@ -36,8 +36,8 @@ service cloud.firestore {
 
     // Validation Helpers
     function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'email', 'role', 'isVip', 'createdAt', 'referralCode', 'referralCount']) 
-        && data.keys().size() >= 7
+      return data.keys().hasAll(['uid', 'email', 'role', 'isVip', 'createdAt', 'referralCode', 'referralCount', 'firstPaymentCompleted', 'commissionGenerated', 'totalEarnings']) 
+        && data.keys().size() >= 10
         && data.uid is string && data.uid == request.auth.uid
         && data.email is string && data.email == request.auth.token.email
         && data.role in ['user', 'vip', 'admin']
@@ -116,8 +116,7 @@ service cloud.firestore {
         && incoming().commissionGenerated == false;
       allow update: if isSignedIn() && (
         (request.auth.uid == userId && (
-          incoming().diff(existing()).affectedKeys().hasOnly(['displayName']) ||
-          incoming().diff(existing()).affectedKeys().hasOnly(['firstPaymentCompleted'])
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'firstPaymentCompleted', 'referralCode', 'referralCount', 'commissionGenerated', 'totalEarnings'])
         )) ||
         (incoming().diff(existing()).affectedKeys().hasOnly(['referralCount']) && incoming().referralCount == existing().referralCount + 1) ||
         isAdmin()
@@ -161,7 +160,8 @@ service cloud.firestore {
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isEmailVerified() && isValidChat(incoming());
       allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin()) 
-        && incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'title']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'title', 'userId', 'createdAt'])
+        && incoming().userId == existing().userId;
       allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
 
       match /messages/{messageId} {

@@ -1,9 +1,11 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function Layout() {
+  const location = useLocation();
+  
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30">
       <header className="fixed top-0 left-0 right-0 z-40 bg-black/50 backdrop-blur-md border-b border-white/5 h-14 flex items-center px-4">

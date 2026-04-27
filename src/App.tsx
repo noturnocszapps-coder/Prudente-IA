@@ -28,32 +28,49 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   return <>{children}</>;
 }
 
+function AppRoutes() {
+  const { user } = useAuth();
+  
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
+          <Route path="/" element={<Home />} />
+          <Route path="/chat" element={<Chat />} />
+          <Route path="/economize" element={<Economize />} />
+          <Route path="/vip" element={<Vip />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/affiliate" element={<Affiliate />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/affiliate-terms" element={<AffiliateTerms />} />
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute adminOnly>
+                <Admin />
+              </ProtectedRoute>
+            } 
+          />
+        </Route>
+        <Route 
+          path="/login" 
+          element={
+            user ? <Navigate to="/" replace /> : <Login />
+          } 
+        />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/economize" element={<Economize />} />
-            <Route path="/vip" element={<Vip />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/affiliate" element={<Affiliate />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/affiliate-terms" element={<AffiliateTerms />} />
-            <Route 
-              path="/admin" 
-              element={
-                <ProtectedRoute adminOnly>
-                  <Admin />
-                </ProtectedRoute>
-              } 
-            />
-          </Route>
-          <Route path="/login" element={<Login />} />
-        </Routes>
-      </BrowserRouter>
+      <AppRoutes />
     </AuthProvider>
   );
 }

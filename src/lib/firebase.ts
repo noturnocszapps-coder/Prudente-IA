@@ -1,13 +1,21 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
+
+if (!firebaseConfig.apiKey || !firebaseConfig.authDomain) {
+  console.error('CRITICAL: Firebase config is missing essential fields!', firebaseConfig);
+}
 
 const app = initializeApp(firebaseConfig);
 // CRITICAL: The app will break without specifying the firestoreDatabaseId
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+// Ensure persistence
+setPersistence(auth, browserLocalPersistence).catch(err => console.error('Persistence error:', err));
 
 export enum OperationType {
   CREATE = 'create',
@@ -68,8 +76,12 @@ async function testConnection() {
 }
 testConnection();
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(useRedirect = false) {
   try {
+    if (useRedirect) {
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
     const result = await signInWithPopup(auth, googleProvider);
     return result.user;
   } catch (error) {

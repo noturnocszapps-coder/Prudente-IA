@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, User, getRedirectResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, getDocs, increment, updateDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { UserProfile } from '../types';
@@ -27,21 +27,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('prudente_ref', refFromUrl.toUpperCase());
     }
 
+    // Handle redirect result
+    getRedirectResult(auth).then((result) => {
+      if (result?.user) {
+        console.log('REDIRECT_LOGIN_SUCCESS:', result.user.email);
+      }
+    }).catch((error) => {
+      console.error('REDIRECT_LOGIN_ERROR:', error);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('AUTH_STATE_CHANGED:', firebaseUser?.email || 'Logged Out');
       setUser(firebaseUser);
       
       if (firebaseUser) {
+        console.log('LOGIN_SUCCESS:', firebaseUser.email);
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         
         // Listen to profile changes
         const unsubProfile = onSnapshot(userDocRef, async (docSnap) => {
           if (docSnap.exists()) {
+            console.log('PROFILE_LOADED:', firebaseUser.email);
             const data = docSnap.data();
             setProfile({
               ...data,
               createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
             } as UserProfile);
           } else {
+            console.log('REGISTERING_NEW_USER:', firebaseUser.email);
             // New user registration logic
             let referredByUid = '';
             const storedRef = localStorage.getItem('prudente_ref');
@@ -98,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             // Bootstrap admin
             if (firebaseUser.email === 'contato.fh3@gmail.com') {
+              console.log('BOOTSTRAPPING_ADMIN:', firebaseUser.email);
               setDoc(doc(db, 'admins', firebaseUser.uid), {
                 email: firebaseUser.email,
                 bootstrapped: true
@@ -105,6 +119,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setDoc(userDocRef, { role: 'admin' }, { merge: true });
             }
           }
+          setLoading(false);
+        }, (error) => {
+          console.error('PROFILE_LOAD_ERROR:', error);
           setLoading(false);
         });
 
